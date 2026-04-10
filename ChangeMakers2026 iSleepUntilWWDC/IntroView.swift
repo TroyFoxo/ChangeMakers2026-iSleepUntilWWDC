@@ -15,7 +15,12 @@
 import SwiftUI
 
 struct IntroView: View {
+    
+    @State private var showNextView = false
+
     var body: some View {
+        
+        
         
         ZStack
         {
@@ -73,19 +78,17 @@ struct IntroView: View {
                                 print("Button was tapped!")
                             }.padding()
                             
-                            Button("Click Me") {
-                                // Code to execute when tapped
-                                print("Button was tapped!")
-                            }.padding()
+                            Button("Siguiente") {
+                                showNextView = true
+                            }
+                            .padding()
+                            .buttonStyle(BorderlessButtonStyle())
                             
                         }.padding(10)
                     }
                         
                         
                 }
-                
-                
-                
                 
                 
                 
@@ -96,6 +99,8 @@ struct IntroView: View {
             }
             .padding()
             
+        }.sheet(isPresented: $showNextView) {
+            FormsNivelView().presentationDetents([.medium])
         }
         
     }
