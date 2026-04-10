@@ -67,10 +67,16 @@ struct GameView: View {
                         ZStack
                         {
                             
+                            Image("ForestTrees")
+                                .resizable()
+                                .scaledToFill()
+                                .frame(maxWidth: 300)
+                                .opacity(0.4)
+                            
                             Image("HouseBG")
                                 .resizable()
                                 .scaledToFill()
-                                .frame(maxWidth:1000)
+                                .frame(maxWidth:300)
                                 .opacity(0.4)
                             
                             Image("DndPotionLadySmaller")
