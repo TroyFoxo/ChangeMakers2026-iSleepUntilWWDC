@@ -161,6 +161,55 @@ class DiceViewModel {
         }
     }
 
+    func rollAnimated() async -> Int {
+        await withCheckedContinuation { continuation in
+            guard !isRolling else {
+                continuation.resume(returning: displayValue)
+                return
+            }
+
+            isRolling = true
+
+            let finalValue = Int.random(in: 1...selectedSides)
+            shakeDirection = -15
+
+            withAnimation(.linear(duration: 0.05).repeatForever(autoreverses: true)) {
+                shakeDirection = 15
+            }
+
+            var shuffleCount = 0
+            Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] timer in
+                guard let self else { return }
+
+                shuffleCount += 1
+                self.displayValue = Int.random(in: 1...self.selectedSides)
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+                if shuffleCount >= 9 {
+                    timer.invalidate()
+                    self.commitRoll(finalValue)
+                    self.isRolling = false
+
+                    self.shakeDirection = 0
+                    self.diceScale = 1.3
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0)) {
+                        self.shakeDirection = 0
+                        self.diceScale = 1.2
+                    }
+
+                    UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
+                            self.diceScale = 1.0
+                        }
+                        continuation.resume(returning: finalValue)
+                    }
+                }
+            }
+        }
+    }
+
     @discardableResult
     func rollInstant() -> Int {
         let result = Int.random(in: 1...selectedSides)

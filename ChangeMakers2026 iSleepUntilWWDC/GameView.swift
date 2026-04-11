@@ -25,6 +25,7 @@ struct GameView: View {
     @State private var worldObjectives: [CampaignObjective] = []
     @State private var selectedMessageType: AdventureMessageType = .action
     @State private var requiresReactionFollowUp = false
+    @State private var isRollingForSend = false
 
     @AppStorage("world_main_tasks_json") private var worldMainTasksJSON = ""
     @AppStorage("adventure_user_message_count") private var adventureUserMessageCount = 0
@@ -123,45 +124,18 @@ struct GameView: View {
                             }
                         }
                     }
-                    .frame(maxWidth: 380, maxHeight: 180, alignment: .bottom)
+                    .frame(maxWidth: 380, maxHeight: 220, alignment: .bottom)
                     .glassCard(isPrimary: true)
                 }
 
                 Spacer()
 
                 if !isDicePickerVisible {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(requiresReactionFollowUp ? "Choose the reaction" : "Choose your message type")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.78))
-
-                        HStack(spacing: 8) {
-                            ForEach(availableMessageTypes) { type in
-                                Button {
-                                    selectedMessageType = type
-                                } label: {
-                                    Label(type.rawValue, systemImage: type.icon)
-                                        .font(.footnote.weight(.semibold))
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 10)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                                .fill(
-                                                    selectedMessageType == type
-                                                        ? Theme.primary.opacity(0.72)
-                                                        : Color.white.opacity(0.12)
-                                                )
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                                .disabled(requiresReactionFollowUp && type != .reaction)
-                            }
-                        }
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .padding(.horizontal)
-                    .padding(.bottom, 12)
+                    Text(messageTypeHeader)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.78))
+                        .padding(.horizontal)
+                        .padding(.bottom, 12)
                 }
 
                 if isDicePickerVisible && selectedMessageType.requiresDice {
@@ -212,27 +186,27 @@ struct GameView: View {
                 }
 
                 HStack(spacing: 12) {
-                    if selectedMessageType.requiresDice {
+                    if !isDicePickerVisible {
                         Button {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                                isDicePickerVisible.toggle()
-                            }
+                            toggleMessageType()
                         } label: {
-                            Image(systemName: "dice.fill")
+                            Image(systemName: typeSelectorIcon(for: selectedMessageType))
                                 .font(.headline.weight(.bold))
                                 .foregroundStyle(.white)
                                 .frame(width: 44, height: 44)
                                 .background(
                                     Circle()
-                                        .fill(isDicePickerVisible ? Theme.primary.opacity(0.75) : Color.white.opacity(0.12))
+                                        .fill(Theme.primary.opacity(0.72))
                                 )
                                 .overlay(
                                     Circle()
-                                        .stroke(isDicePickerVisible ? Theme.primary : Color.white.opacity(0.12), lineWidth: 1.5)
+                                        .stroke(Theme.primary, lineWidth: 1.2)
                                 )
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(isDicePickerVisible ? "Hide dice options" : "Show dice options")
+                        .disabled(requiresReactionFollowUp)
+                        .accessibilityLabel(selectedMessageType.rawValue)
+                        .accessibilityHint(requiresReactionFollowUp ? "Reaction is required after an action." : "Switches between action and narrative.")
                     }
 
                     TextField(inputPlaceholder, text: $userPrompt)
@@ -351,7 +325,7 @@ struct GameView: View {
             }
         }
         .overlay(alignment: .bottomLeading) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 if isVisible && selectedMessageType.requiresDice && !isDicePickerVisible && isComposerVisible {
                     KanaComposerView(composedWord: $userPrompt) {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
@@ -376,6 +350,29 @@ struct GameView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Open kana composer")
+                }
+
+                if isVisible && selectedMessageType.requiresDice {
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                            isDicePickerVisible.toggle()
+                        }
+                    } label: {
+                        Image(systemName: "dice.fill")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(Color.white.opacity(0.12))
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white.opacity(0.12), lineWidth: 1.5)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(isDicePickerVisible ? "Hide dice options" : "Show dice options")
                 }
 
                 if !isDicePickerVisible {
@@ -412,6 +409,37 @@ struct GameView: View {
             }
             .padding(.leading, 16)
             .padding(.bottom, overlayBottomInset)
+        }
+        .overlay {
+            if isRollingForSend {
+                ZStack {
+                    Color.black.opacity(0.56)
+                        .ignoresSafeArea()
+
+                    VStack(spacing: 14) {
+                        Text("Rolling d\(diceViewModel.selectedSides)")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(.white)
+
+                        DiceFaceView(value: diceViewModel.displayValue, isRolling: diceViewModel.isRolling)
+                            .rotationEffect(.degrees(diceViewModel.shakeDirection))
+                            .scaleEffect(diceViewModel.diceScale)
+                            .animation(
+                                diceViewModel.isRolling
+                                ? .linear(duration: 0.08).repeatForever(autoreverses: true)
+                                : .default,
+                                value: diceViewModel.shakeDirection
+                            )
+
+                        Text("The result will be used for the scene.")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.78))
+                    }
+                    .padding(24)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                }
+                .transition(.opacity)
+            }
         }
     }
 
@@ -450,8 +478,36 @@ struct GameView: View {
         }
     }
 
+    private var messageTypeHeader: String {
+        if requiresReactionFollowUp {
+            return "Choose the reaction: \(selectedMessageType.rawValue)"
+        }
+
+        return "Choose your message type: \(selectedMessageType.rawValue)"
+    }
+
     private var availableMessageTypes: [AdventureMessageType] {
         requiresReactionFollowUp ? [.reaction] : [.action, .narrative]
+    }
+
+    private func typeSelectorIcon(for type: AdventureMessageType) -> String {
+        switch type {
+        case .action:
+            return "flame.fill"
+        case .reaction:
+            return "arrow.uturn.backward.circle.fill"
+        case .narrative:
+            return "text.bubble.fill"
+        }
+    }
+
+    private func toggleMessageType() {
+        guard !requiresReactionFollowUp else {
+            selectedMessageType = .reaction
+            return
+        }
+
+        selectedMessageType = selectedMessageType == .action ? .narrative : .action
     }
 
     private func syncInitialConversationIfNeeded() {
@@ -471,7 +527,16 @@ struct GameView: View {
 
         let prompt = trimmedPrompt
         let currentMessageType = selectedMessageType
-        let diceSummary = currentMessageType.requiresDice ? rolledDiceSummary() : nil
+        let diceSummary: String?
+
+        if currentMessageType.requiresDice {
+            isRollingForSend = true
+            let result = await diceViewModel.rollAnimated()
+            diceSummary = "d\(diceViewModel.selectedSides): \(result)"
+            isRollingForSend = false
+        } else {
+            diceSummary = nil
+        }
 
         conversation.append(
             AdventureChatMessage(
@@ -521,12 +586,6 @@ struct GameView: View {
 
     private var availableDiceSides: [Int] {
         diceViewModel.availableDiceSides
-    }
-
-    private func rolledDiceSummary() -> String {
-        let sides = diceViewModel.selectedSides
-        let result = diceViewModel.rollInstant()
-        return "d\(sides): \(result)"
     }
 
     private func loadObjectives() {

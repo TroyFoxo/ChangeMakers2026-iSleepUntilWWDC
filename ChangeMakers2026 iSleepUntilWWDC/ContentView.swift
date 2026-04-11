@@ -23,15 +23,12 @@ struct ContentView: View {
             GameView()
                 .tabItem { Label("Adventure", systemImage: "map.fill") }
                 .tag(1)
-            DiceView()
-                .tabItem { Label("Dice", systemImage: "die.face.5.fill") }
-                .tag(2)
             DictionaryView()
                 .tabItem { Label("Grimore", systemImage: "book.closed.fill") }
-                .tag(3)
+                .tag(2)
             LearningView()
                 .tabItem { Label("Learning", systemImage: "character.book.closed.fill") }
-                .tag(4)
+                .tag(3)
         }
         .tint(.white)
         .preferredColorScheme(.dark)
