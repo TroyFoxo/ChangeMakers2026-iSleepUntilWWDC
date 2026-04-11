@@ -55,107 +55,136 @@ struct DrawingCanvasView: View {
     }()
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Draw here")
-                .font(.title2)
-                .bold()
+        ZStack {
+            GlobalBackground()
+            
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("Draw here")
+                        .font(.title2)
+                        .bold()
+                        .foregroundStyle(.white)
+                        .padding(.top, 20)
 
-            ZStack {
-                Rectangle()
-                    .fill(Color.white)
-                    .overlay(
+                    // Formato aplicado al cuadrado de dibujo
+                    ZStack {
                         Rectangle()
-                            .stroke(Color.black.opacity(0.3), lineWidth: 2)
-                    )
-
-                Canvas { context, size in
-                    for stroke in strokes {
-                        drawStroke(stroke, in: &context)
-                    }
-                    drawStroke(currentStroke, in: &context)
-                }
-            }
-            .frame(width: 300, height: 300)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        currentStroke.append(value.location)
-                    }
-                    .onEnded { _ in
-                        if !currentStroke.isEmpty {
-                            strokes.append(currentStroke)
-                            currentStroke = []
+                            .fill(Color.white)
+                        
+                        Canvas { context, size in
+                            for stroke in strokes {
+                                drawStroke(stroke, in: &context)
+                            }
+                            drawStroke(currentStroke, in: &context)
                         }
                     }
-            )
+                    .frame(width: 300, height: 300)
+                    .clipShape(RoundedRectangle(cornerRadius: 15))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 15)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.5), radius: 10, x: 0, y: 5)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                currentStroke.append(value.location)
+                            }
+                            .onEnded { _ in
+                                if !currentStroke.isEmpty {
+                                    strokes.append(currentStroke)
+                                    currentStroke = []
+                                }
+                            }
+                    )
 
-            HStack(spacing: 16) {
-                Button("Clear") {
-                    clearCanvas()
-                }
-                .buttonStyle(.bordered)
+                    HStack(spacing: 16) {
+                        Button("Clear") {
+                            clearCanvas()
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.white)
 
-                Button(isUploading ? "Predicting..." : "Predict") {
-                    Task {
-                        await exportAndPredict()
+                        Button(isUploading ? "Predicting..." : "Predict") {
+                            Task {
+                                await exportAndPredict()
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Theme.primary)
+                        .disabled(isUploading || isCanvasEmpty)
                     }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isUploading || isCanvasEmpty)
-            }
+                    .padding(.vertical, 8)
 
-            if let exportedImage {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Exported JPG preview")
-                        .font(.headline)
+                    // Formato aplicado a la info que despliega
+                    if let exportedImage {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Exported JPG preview")
+                                .font(.headline)
+                                .foregroundStyle(.white)
 
-                    Image(uiImage: exportedImage)
-                        .resizable()
-                        .interpolation(.none)
-                        .scaledToFit()
-                        .frame(width: 150, height: 150)
-                        .border(Color.gray)
-                }
-            }
+                            Image(uiImage: exportedImage)
+                                .resizable()
+                                .interpolation(.none)
+                                .scaledToFit()
+                                .frame(width: 150, height: 150)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                        .padding()
+                        .glassCard()
+                    }
 
-            if let predictionResponse {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Prediction debug")
-                        .font(.headline)
+                    if let predictionResponse {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Prediction debug")
+                                .font(.headline)
+                                .foregroundStyle(.white)
 
-                    Text("Character: \(predictionResponse.character)")
-                    Text(String(format: "Confidence: %.4f", predictionResponse.confidence))
-                    Text("Class index: \(predictionResponse.classIndex)")
+                            Text("Character: \(predictionResponse.character)")
+                                .font(.title3.bold())
+                                .foregroundStyle(.white)
+                            
+                            Text(String(format: "Confidence: %.4f", predictionResponse.confidence))
+                                .foregroundStyle(.white.opacity(0.8))
+                            
+                            Text("Class index: \(predictionResponse.classIndex)")
+                                .foregroundStyle(.white.opacity(0.8))
 
-                    if !predictionResult.isEmpty {
+                            if !predictionResult.isEmpty {
+                                Text("Raw response: \(predictionResult)")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.5))
+                                    .padding(.top, 4)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .glassCard()
+                        
+                    } else if !predictionResult.isEmpty {
                         Text("Raw response: \(predictionResult)")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.white.opacity(0.8))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .glassCard()
                     }
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .bold()
+                            .foregroundColor(Theme.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .glassCard()
+                    }
+
+                    Spacer(minLength: 40)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(8)
-            } else if !predictionResult.isEmpty {
-                Text("Raw response: \(predictionResult)")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+                .padding(.horizontal)
             }
-
-            if let errorMessage {
-                Text(errorMessage)
-                    .foregroundColor(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            Spacer()
         }
-        .padding()
-        .background(Color(.systemGroupedBackground))
     }
 
     private var isCanvasEmpty: Bool {
@@ -295,8 +324,4 @@ private extension Data {
             append(data)
         }
     }
-}
-
-#Preview {
-    DrawingCanvasView()
 }

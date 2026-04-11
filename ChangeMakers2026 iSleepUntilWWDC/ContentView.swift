@@ -1,21 +1,40 @@
-//
-//  ContentView.swift
-//  ChangeMakers2026 iSleepUntilWWDC
-//
-//  Created by Alumno on 08/04/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+    @State private var selectedTab = 0
+    
+    init() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
+        appearance.backgroundColor = UIColor.clear
+        
+        UITabBar.appearance().standardAppearance = appearance
+        if #available(iOS 15.0, *) {
+            UITabBar.appearance().scrollEdgeAppearance = appearance
         }
-        .padding()
+    }
+    
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            HomeView()
+                .tabItem { Label("Home", systemImage: "house.fill") }
+                .tag(0)
+            GameView()
+                .tabItem { Label("Adventure", systemImage: "map.fill") }
+                .tag(1)
+            DiceView()
+                .tabItem { Label("Dice", systemImage: "die.face.5.fill") }
+                .tag(2)
+            DictionaryView()
+                .tabItem { Label("Grimore", systemImage: "book.closed.fill") }
+                .tag(3)
+            DrawingCanvasView()
+                .tabItem { Label("Drawing", systemImage: "book.closed.fill") }
+                .tag(3)
+        }
+        .tint(.white)
+        .preferredColorScheme(.dark)
     }
 }
 
