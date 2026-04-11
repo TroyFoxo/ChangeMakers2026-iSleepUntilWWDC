@@ -85,13 +85,30 @@ struct HomeView: View {
                     .opacity(hasWorld ? 1 : 0.45)
                 }
                 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Misiones de Hoy")
-                        .font(.title2.bold())
-                    
-                    Text("Completa tus misiones en orden")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Misiones de Hoy")
+                            .font(.title2.bold())
+                        
+                        Text("Completa tus misiones en orden")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        viewModel.resetDailyTaskProgress()
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.white)
+                            .frame(width: 34, height: 34)
+                            .background(Color.white.opacity(0.1), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Reset daily tasks")
+                    .accessibilityHint("Resets the daily task progress without deleting learned content.")
                 }
                 .padding(.horizontal)
                 

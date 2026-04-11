@@ -42,6 +42,9 @@ class LearningProgressStore {
 class HomeViewModel {
     private let progress = LearningProgressStore.shared
     private let adventureMessageCountKey = "adventure_user_message_count"
+    private let baselineLearnedKanaKey = "daily_tasks_baseline_learned_kana_count"
+    private let baselineLearnedEntriesKey = "daily_tasks_baseline_learned_entries_count"
+    private let baselineAdventureMessagesKey = "daily_tasks_baseline_adventure_messages"
 
     var todayQuests: [DailyQuest] = []
 
@@ -51,7 +54,12 @@ class HomeViewModel {
 
     func refreshQuestProgress() {
         let adventureMessageCount = UserDefaults.standard.integer(forKey: adventureMessageCountKey)
-        let hasLearningProgress = !progress.learnedKana.isEmpty || !progress.learnedEntryIDs.isEmpty
+        let baselineLearnedKana = UserDefaults.standard.integer(forKey: baselineLearnedKanaKey)
+        let baselineLearnedEntries = UserDefaults.standard.integer(forKey: baselineLearnedEntriesKey)
+        let baselineAdventureMessages = UserDefaults.standard.integer(forKey: baselineAdventureMessagesKey)
+
+        let hasLearningProgress = progress.learnedKana.count > baselineLearnedKana
+            || progress.learnedEntryIDs.count > baselineLearnedEntries
 
         todayQuests = [
             DailyQuest(
@@ -64,15 +72,25 @@ class HomeViewModel {
                 title: "Take an Adventure",
                 description: "Send at least one action message in Adventure.",
                 type: .roleplay,
-                isCompleted: adventureMessageCount >= 1
+                isCompleted: adventureMessageCount >= baselineAdventureMessages + 1
             ),
             DailyQuest(
                 title: "Prepare the Reaction and Rest",
                 description: "Send at least two Adventure messages: the action and the reaction plan.",
                 type: .forge,
-                isCompleted: adventureMessageCount >= 2
+                isCompleted: adventureMessageCount >= baselineAdventureMessages + 2
             )
         ]
+    }
+
+    func resetDailyTaskProgress() {
+        UserDefaults.standard.set(progress.learnedKana.count, forKey: baselineLearnedKanaKey)
+        UserDefaults.standard.set(progress.learnedEntryIDs.count, forKey: baselineLearnedEntriesKey)
+        UserDefaults.standard.set(
+            UserDefaults.standard.integer(forKey: adventureMessageCountKey),
+            forKey: baselineAdventureMessagesKey
+        )
+        refreshQuestProgress()
     }
     
     func isPrimary(index: Int) -> Bool {
