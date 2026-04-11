@@ -29,9 +29,9 @@ struct ContentView: View {
             DictionaryView()
                 .tabItem { Label("Grimore", systemImage: "book.closed.fill") }
                 .tag(3)
-            DrawingCanvasView()
-                .tabItem { Label("Drawing", systemImage: "book.closed.fill") }
-                .tag(3)
+            LearningView()
+                .tabItem { Label("Learning", systemImage: "character.book.closed.fill") }
+                .tag(4)
         }
         .tint(.white)
         .preferredColorScheme(.dark)

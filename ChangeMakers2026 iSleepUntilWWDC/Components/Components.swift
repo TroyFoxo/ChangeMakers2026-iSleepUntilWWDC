@@ -15,6 +15,7 @@ struct GlobalBackground: View {
             )
             .ignoresSafeArea()
         }
+        .accessibilityHidden(true)
     }
 }
 
@@ -39,6 +40,10 @@ struct DiceFaceView: View {
                 .font(.system(size: 50, weight: .black, design: .rounded))
                 .foregroundStyle(.black)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Dice")
+        .accessibilityValue("\(value)")
+        .accessibilityHint("Double tap to roll.")
     }
 }
 
@@ -80,6 +85,10 @@ struct QuestCardView: View {
             .scaleEffect(quest.isCompleted ? 0.98 : 1)
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(quest.title)
+        .accessibilityValue(quest.isCompleted ? "Completed" : "Not completed")
+        .accessibilityHint(quest.description)
     }
 }
 
@@ -100,5 +109,9 @@ struct KanaCellView: View {
         .padding(.vertical, 12)
         .glassCard(isPrimary: true)
         .opacity(kana.isEmpty ? 0 : 1)
+        .accessibilityHidden(kana.isEmpty)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(kana.character)
+        .accessibilityValue(kana.romaji)
     }
 }

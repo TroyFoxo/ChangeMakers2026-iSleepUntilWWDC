@@ -16,5 +16,9 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Voice input uses the microphone to help compose hiragana words.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Speech recognition converts spoken Japanese into hiragana input.</string>
 </dict>
 </plist>
