@@ -31,13 +31,15 @@ struct SceneReply {
 
 @MainActor
 final class ChatBotViewModel: ObservableObject {
+    static let initialSceneText = """
+    Welcome, adventurer. You enter the Lantern & Leaf tavern.
+    A nervous elf named Mira is sitting alone, looking unsure whether to speak.
+    What do you do?
+    """
+
     @Published var messages: [ChatMessage] = [
         ChatMessage(
-            text: """
-            Welcome, adventurer. You enter the Lantern & Leaf tavern.
-            A nervous elf named Mira is sitting alone, looking unsure whether to speak.
-            What do you do?
-            """,
+            text: ChatBotViewModel.initialSceneText,
             isUser: false
         )
     ]
@@ -73,16 +75,50 @@ final class ChatBotViewModel: ObservableObject {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isLoading else { return }
 
-        messages.append(ChatMessage(text: trimmed, isUser: true))
         input = ""
+        _ = await sendMessage(
+            trimmed,
+            messageType: .narrative,
+            diceSummary: nil,
+            addUserMessage: true
+        )
+    }
+
+    @discardableResult
+    func sendMessage(
+        _ text: String,
+        messageType: AdventureMessageType,
+        diceSummary: String?,
+        addUserMessage: Bool = true
+    ) async -> [ChatMessage] {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !isLoading else { return [] }
+
+        if addUserMessage {
+            messages.append(ChatMessage(text: trimmed, isUser: true))
+        }
         errorText = nil
         isLoading = true
 
         defer { isLoading = false }
 
         do {
+            let diceContext = if let diceSummary, messageType.requiresDice {
+                """
+                This is a \(messageType.rawValue.lowercased()) check.
+                Dice result: \(diceSummary).
+                A higher dice result means the player is more likely to perform the attempt correctly.
+                A low dice result can cause a partial success, awkward success, or failure.
+                """
+            } else {
+                "This message does not use a dice roll."
+            }
+
             let prompt = """
             Continue the fantasy roleplay scene.
+
+            The player's message type is: \(messageType.rawValue).
+            \(diceContext)
 
             The player says:
             "\(trimmed)"
@@ -99,30 +135,29 @@ final class ChatBotViewModel: ObservableObject {
             )
 
             let reply = response.content
+            let generated = [
+                ChatMessage(text: reply.narration, isUser: false),
+                ChatMessage(text: "Mira: \(reply.npcDialogue)", isUser: false),
+                ChatMessage(text: "Social hint: \(reply.socialHint)", isUser: false)
+            ]
 
-            messages.append(ChatMessage(text: reply.narration, isUser: false))
-            messages.append(ChatMessage(text: "Mira: \(reply.npcDialogue)", isUser: false))
-            messages.append(ChatMessage(text: "Social hint: \(reply.socialHint)", isUser: false))
-
+            messages.append(contentsOf: generated)
+            return generated
         } catch {
             errorText = error.localizedDescription
-            messages.append(
-                ChatMessage(
-                    text: "I couldn’t generate a reply right now: \(error.localizedDescription)",
-                    isUser: false
-                )
+            let fallback = ChatMessage(
+                text: "I couldn’t generate a reply right now: \(error.localizedDescription)",
+                isUser: false
             )
+            messages.append(fallback)
+            return [fallback]
         }
     }
 
     func resetConversation() {
         messages = [
             ChatMessage(
-                text: """
-                Welcome, adventurer. You enter the Lantern & Leaf tavern.
-                A nervous elf named Mira is sitting alone, looking unsure whether to speak.
-                What do you do?
-                """,
+                text: ChatBotViewModel.initialSceneText,
                 isUser: false
             )
         ]

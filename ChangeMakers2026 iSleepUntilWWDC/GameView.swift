@@ -16,22 +16,23 @@ import SwiftUI
 
 struct GameView: View {
     @State private var diceViewModel = DiceViewModel.shared
-    @State private var showNextView = false
+    @StateObject private var chatViewModel = ChatBotViewModel()
     @State private var isVisible = true
     @State private var userPrompt = ""
     @State private var isComposerVisible = true
     @State private var conversation: [AdventureChatMessage] = []
     @State private var isDicePickerVisible = false
     @State private var worldObjectives: [CampaignObjective] = []
+    @State private var selectedMessageType: AdventureMessageType = .action
+    @State private var requiresReactionFollowUp = false
 
     @AppStorage("world_main_tasks_json") private var worldMainTasksJSON = ""
     @AppStorage("adventure_user_message_count") private var adventureUserMessageCount = 0
 
-    @State var NPCDialogue = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-
-    private let kanaComposerBottomInset: CGFloat = 112
-    private let kanaLauncherBottomInset: CGFloat = 114
-    private let kanaLauncherExpandedDiceInset: CGFloat = 172
+    private let kanaComposerBottomInset: CGFloat = 108
+    private let kanaLauncherBottomInset: CGFloat = 92
+    private let dialogueOnlyBottomInset: CGFloat = 92
+    private let kanaLauncherExpandedDiceInset: CGFloat = 184
     var body: some View {
         VStack {
             if isVisible {
@@ -40,36 +41,30 @@ struct GameView: View {
                         Image("ForestTrees")
                             .resizable()
                             .scaledToFill()
-                            .frame(maxWidth: 300)
+                            .frame(maxWidth: 250)
                             .opacity(0.4)
                             .accessibilityHidden(true)
 
                         Image("HouseBG")
                             .resizable()
                             .scaledToFill()
-                            .frame(maxWidth: 300)
+                            .frame(maxWidth: 250)
                             .opacity(0.4)
                             .accessibilityHidden(true)
 
                         Image("DndPotionLadySmaller")
                             .resizable()
                             .scaledToFit()
-                            .frame(maxWidth: 300)
+                            .frame(maxWidth: 220)
                             .accessibilityHidden(true)
                     }
-                    .frame(maxWidth: 380, maxHeight: 200, alignment: .bottom)
-                    .padding(.bottom, 40)
+                    .frame(maxWidth: 340, maxHeight: 150, alignment: .bottom)
+                    .padding(.bottom, 20)
                     .glassCard(isPrimary: true)
 
                     ScrollViewReader { proxy in
                         ScrollView {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text(NPCDialogue)
-                                    .foregroundStyle(.white)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.vertical, 4)
-                                    .accessibilityLabel("Narrator dialogue")
-
                                 ForEach(conversation) { message in
                                     HStack {
                                         if message.isUser {
@@ -77,6 +72,15 @@ struct GameView: View {
                                         }
 
                                         VStack(alignment: .leading, spacing: 6) {
+                                            if let messageType = message.messageType {
+                                                Label(messageType.rawValue, systemImage: messageType.icon)
+                                                    .font(.caption.weight(.semibold))
+                                                    .foregroundStyle(.white.opacity(0.88))
+                                                    .padding(.horizontal, 10)
+                                                    .padding(.vertical, 6)
+                                                    .background(Color.black.opacity(0.22), in: Capsule())
+                                            }
+
                                             if let diceSummary = message.diceSummary {
                                                 Label(diceSummary, systemImage: "dice.fill")
                                                     .font(.caption.weight(.semibold))
@@ -119,13 +123,48 @@ struct GameView: View {
                             }
                         }
                     }
-                    .frame(maxWidth: 380, maxHeight: 200, alignment: .bottom)
+                    .frame(maxWidth: 380, maxHeight: 180, alignment: .bottom)
                     .glassCard(isPrimary: true)
                 }
 
                 Spacer()
 
-                if isDicePickerVisible {
+                if !isDicePickerVisible {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(requiresReactionFollowUp ? "Choose the reaction" : "Choose your message type")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.78))
+
+                        HStack(spacing: 8) {
+                            ForEach(availableMessageTypes) { type in
+                                Button {
+                                    selectedMessageType = type
+                                } label: {
+                                    Label(type.rawValue, systemImage: type.icon)
+                                        .font(.footnote.weight(.semibold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                                .fill(
+                                                    selectedMessageType == type
+                                                        ? Theme.primary.opacity(0.72)
+                                                        : Color.white.opacity(0.12)
+                                                )
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(requiresReactionFollowUp && type != .reaction)
+                            }
+                        }
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
+                }
+
+                if isDicePickerVisible && selectedMessageType.requiresDice {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Choose the die for this action")
                             .font(.caption.weight(.semibold))
@@ -173,28 +212,30 @@ struct GameView: View {
                 }
 
                 HStack(spacing: 12) {
-                    Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                            isDicePickerVisible.toggle()
+                    if selectedMessageType.requiresDice {
+                        Button {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                                isDicePickerVisible.toggle()
+                            }
+                        } label: {
+                            Image(systemName: "dice.fill")
+                                .font(.headline.weight(.bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    Circle()
+                                        .fill(isDicePickerVisible ? Theme.primary.opacity(0.75) : Color.white.opacity(0.12))
+                                )
+                                .overlay(
+                                    Circle()
+                                        .stroke(isDicePickerVisible ? Theme.primary : Color.white.opacity(0.12), lineWidth: 1.5)
+                                )
                         }
-                    } label: {
-                        Image(systemName: "dice.fill")
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(
-                                Circle()
-                                    .fill(isDicePickerVisible ? Theme.primary.opacity(0.75) : Color.white.opacity(0.12))
-                            )
-                            .overlay(
-                                Circle()
-                                    .stroke(isDicePickerVisible ? Theme.primary : Color.white.opacity(0.12), lineWidth: 1.5)
-                            )
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(isDicePickerVisible ? "Hide dice options" : "Show dice options")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(isDicePickerVisible ? "Hide dice options" : "Show dice options")
 
-                    TextField("¿Que harás ahora?:", text: $userPrompt)
+                    TextField(inputPlaceholder, text: $userPrompt)
                         .textFieldStyle(.roundedBorder)
                         .textInputAutocapitalization(.words)
                         .disableAutocorrection(true)
@@ -202,17 +243,28 @@ struct GameView: View {
                         .accessibilityLabel("Adventure message")
                         .accessibilityHint("Enter your action or reaction plan.")
 
-                    Button("Send") {
-                        sendMessage()
+                    Button {
+                        Task {
+                            await sendMessage()
+                        }
+                    } label: {
+                        Image(systemName: "paperplane.fill")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 40, height: 40)
+                            .background(Theme.primary, in: Circle())
                     }
-                    .glassCard(isPrimary: true)
-                    .foregroundStyle(.white)
-                    .frame(height: 50)
+                    .buttonStyle(.plain)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    )
                     .disabled(trimmedPrompt.isEmpty)
-                    .accessibilityHint("Sends your message and rolls the selected die.")
+                    .accessibilityLabel("Send message")
+                    .accessibilityHint("Sends your message and rolls the selected die when needed.")
                 }
                 .padding(.horizontal)
-                .padding(.top, 4)
+                .padding(.top, 8)
                 .padding(.bottom)
 
             } else {
@@ -286,13 +338,21 @@ struct GameView: View {
         }
         .onAppear {
             loadObjectives()
+            syncInitialConversationIfNeeded()
         }
         .onChange(of: worldMainTasksJSON) { _, _ in
             loadObjectives()
         }
-        .overlay(alignment: .bottomTrailing) {
-            VStack(alignment: .trailing, spacing: 12) {
-                if isVisible && !isDicePickerVisible && isComposerVisible {
+        .onChange(of: selectedMessageType) { _, newValue in
+            guard !newValue.requiresDice else { return }
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                isDicePickerVisible = false
+                isComposerVisible = false
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            VStack(alignment: .leading, spacing: 12) {
+                if isVisible && selectedMessageType.requiresDice && !isDicePickerVisible && isComposerVisible {
                     KanaComposerView(composedWord: $userPrompt) {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                             isComposerVisible = false
@@ -302,18 +362,17 @@ struct GameView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                if isVisible && !isComposerVisible && !isDicePickerVisible {
+                if isVisible && selectedMessageType.requiresDice && !isComposerVisible && !isDicePickerVisible {
                     Button {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                             isComposerVisible = true
                         }
                     } label: {
-                        Label("Kana", systemImage: "character.textbox.ja")
-                            .font(.headline)
+                        Image(systemName: "character.textbox.ja")
+                            .font(.headline.weight(.bold))
                             .foregroundStyle(.white)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 14)
-                            .background(.ultraThinMaterial, in: Capsule())
+                            .frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial, in: Circle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Open kana composer")
@@ -329,30 +388,29 @@ struct GameView: View {
                             }
                         }
                     } label: {
-                        Label(isVisible ? "Ocultar diálogo" : "Mostrar diálogo", systemImage: isVisible ? "map.fill" : "arrow.uturn.backward.circle.fill")
-                            .font(.subheadline.weight(.semibold))
+                        Image(systemName: isVisible ? "map.fill" : "arrow.uturn.backward.circle.fill")
+                            .font(.headline.weight(.bold))
                             .foregroundStyle(.white)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 10)
+                            .frame(width: 44, height: 44)
                             .background(
                                 LinearGradient(
                                     colors: [Theme.primary.opacity(0.35), Color.white.opacity(0.08)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                in: Capsule()
+                                in: Circle()
                             )
                     }
                     .buttonStyle(.plain)
-                    .background(.ultraThinMaterial, in: Capsule())
+                    .background(.ultraThinMaterial, in: Circle())
                     .overlay(
-                        Capsule()
+                        Circle()
                             .stroke(Theme.primary.opacity(0.85), lineWidth: 1.5)
                     )
                     .accessibilityLabel(isVisible ? "Hide dialogue" : "Show dialogue")
                 }
             }
-            .padding(.trailing, 16)
+            .padding(.leading, 16)
             .padding(.bottom, overlayBottomInset)
         }
     }
@@ -362,33 +420,103 @@ struct GameView: View {
             return 24
         }
 
+        if !selectedMessageType.requiresDice {
+            return dialogueOnlyBottomInset
+        }
+
+        if isDicePickerVisible {
+            return kanaLauncherExpandedDiceInset
+        }
+
         if isComposerVisible {
             return kanaComposerBottomInset
         }
 
-        return isDicePickerVisible ? kanaLauncherExpandedDiceInset : kanaLauncherBottomInset
+        return kanaLauncherBottomInset
     }
 
     private var trimmedPrompt: String {
         userPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func sendMessage() {
+    private var inputPlaceholder: String {
+        switch selectedMessageType {
+        case .action:
+            return "Describe your action"
+        case .reaction:
+            return "Describe your reaction"
+        case .narrative:
+            return "Add narrative context"
+        }
+    }
+
+    private var availableMessageTypes: [AdventureMessageType] {
+        requiresReactionFollowUp ? [.reaction] : [.action, .narrative]
+    }
+
+    private func syncInitialConversationIfNeeded() {
+        guard conversation.isEmpty else { return }
+        conversation = [
+            AdventureChatMessage(
+                text: ChatBotViewModel.initialSceneText,
+                isUser: false,
+                diceSummary: nil,
+                messageType: nil
+            )
+        ]
+    }
+
+    private func sendMessage() async {
         guard !trimmedPrompt.isEmpty else { return }
+
+        let prompt = trimmedPrompt
+        let currentMessageType = selectedMessageType
+        let diceSummary = currentMessageType.requiresDice ? rolledDiceSummary() : nil
 
         conversation.append(
             AdventureChatMessage(
-                text: trimmedPrompt,
+                text: prompt,
                 isUser: true,
-                diceSummary: rolledDiceSummary()
+                diceSummary: diceSummary,
+                messageType: currentMessageType
             )
         )
         adventureUserMessageCount += 1
 
         userPrompt = ""
+
+        if currentMessageType == .action {
+            requiresReactionFollowUp = true
+            selectedMessageType = .reaction
+        } else if currentMessageType == .reaction {
+            requiresReactionFollowUp = false
+            selectedMessageType = .action
+        }
+
         withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
             isDicePickerVisible = false
+            if !selectedMessageType.requiresDice {
+                isComposerVisible = false
+            }
         }
+
+        let replies = await chatViewModel.sendMessage(
+            prompt,
+            messageType: currentMessageType,
+            diceSummary: diceSummary,
+            addUserMessage: false
+        )
+
+        conversation.append(
+            contentsOf: replies.map {
+                AdventureChatMessage(
+                    text: $0.text,
+                    isUser: false,
+                    diceSummary: nil,
+                    messageType: nil
+                )
+            }
+        )
     }
 
     private var availableDiceSides: [Int] {

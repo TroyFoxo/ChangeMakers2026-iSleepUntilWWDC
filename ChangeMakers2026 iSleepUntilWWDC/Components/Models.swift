@@ -54,6 +54,35 @@ struct AdventureChatMessage: Identifiable, Hashable {
     let text: String
     let isUser: Bool
     let diceSummary: String?
+    let messageType: AdventureMessageType?
+}
+
+enum AdventureMessageType: String, CaseIterable, Identifiable, Hashable {
+    case action = "Action"
+    case reaction = "Reaction"
+    case narrative = "Narrative"
+
+    var id: String { rawValue }
+
+    var requiresDice: Bool {
+        switch self {
+        case .action, .reaction:
+            return true
+        case .narrative:
+            return false
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .action:
+            return "figure.sword"
+        case .reaction:
+            return "bolt.shield"
+        case .narrative:
+            return "text.bubble"
+        }
+    }
 }
 
 struct LearningEntry: Identifiable, Hashable {
