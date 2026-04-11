@@ -9,14 +9,10 @@ import SwiftUI
 
 @main
 struct ChangeMakers2026_iSleepUntilWWDCApp: App {
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
-            //ChatBotView()
         }
     }
 }
-
-
-
-
