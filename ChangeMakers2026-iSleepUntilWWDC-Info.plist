@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>Allow Local Networking</key>
+		<dict>
+			<key>31.220.50.65</key>
+			<string></string>
+			<key>Exception Allows Insecure HTTP Loads</key>
+			<true/>
+		</dict>
+		<key>App Transport Security Settings</key>
+		<true/>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+</dict>
+</plist>
